@@ -92,7 +92,7 @@ install_packages() {
             info "Installing packages via apt..."
             sudo apt update
             sudo apt install -y \
-                zsh stow ripgrep bat neovim tmux \
+                zsh stow ripgrep bat neovim tmux unzip \
                 nodejs npm curl git xclip wl-clipboard
 
             # eza: only when packaged in your release (e.g. Ubuntu 24.04+ universe); skip otherwise
@@ -118,7 +118,7 @@ install_packages() {
         elif command -v dnf &>/dev/null; then
             info "Installing packages via dnf..."
             sudo dnf install -y \
-                zsh stow ripgrep fd-find bat eza neovim tmux \
+                zsh stow ripgrep fd-find bat eza neovim tmux unzip \
                 nodejs npm curl git xclip wl-clipboard
 
         else
