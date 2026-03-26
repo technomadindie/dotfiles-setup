@@ -12,6 +12,9 @@ DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 OS="$(uname -s)"
 
+mkdir -p "$HOME/.local/bin"
+export PATH="$HOME/.local/bin:$PATH"
+
 info()  { echo -e "${BLUE}[INFO]${NC} $1"; }
 ok()    { echo -e "${GREEN}[OK]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
@@ -89,7 +92,7 @@ install_packages() {
             info "Installing packages via apt..."
             sudo apt update
             sudo apt install -y \
-                zsh stow fzf ripgrep bat neovim tmux \
+                zsh stow ripgrep bat neovim tmux \
                 nodejs npm curl git xclip wl-clipboard
 
             # eza: only when packaged in your release (e.g. Ubuntu 24.04+ universe); skip otherwise
@@ -102,36 +105,76 @@ install_packages() {
             # fd-find has a different package name on Debian/Ubuntu
             sudo apt install -y fd-find || true
 
-            # bat binary is 'batcat' on Debian/Ubuntu — create symlink
+            # bat binary is 'batcat' on Debian/Ubuntu — symlink to ~/.local/bin
             if command -v batcat &>/dev/null && ! command -v bat &>/dev/null; then
-                sudo ln -sf "$(which batcat)" /usr/local/bin/bat
+                ln -sf "$(which batcat)" "$HOME/.local/bin/bat"
             fi
 
-            # fd binary is 'fdfind' on Debian/Ubuntu — create symlink
+            # fd binary is 'fdfind' on Debian/Ubuntu — symlink to ~/.local/bin
             if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
-                sudo ln -sf "$(which fdfind)" /usr/local/bin/fd
-            fi
-
-            # git-delta (not in default repos, install from GitHub release)
-            if ! command -v delta &>/dev/null; then
-                warn "git-delta not available via apt. Install manually: https://github.com/dandavison/delta/releases"
+                ln -sf "$(which fdfind)" "$HOME/.local/bin/fd"
             fi
 
         elif command -v dnf &>/dev/null; then
             info "Installing packages via dnf..."
             sudo dnf install -y \
-                zsh stow fzf ripgrep fd-find bat eza neovim tmux \
-                nodejs npm curl git git-delta xclip wl-clipboard
+                zsh stow ripgrep fd-find bat eza neovim tmux \
+                nodejs npm curl git xclip wl-clipboard
 
         else
             err "Unsupported package manager. Install packages manually."
             exit 1
         fi
 
-        # Starship (cross-platform installer)
+        # ── Rootless binary installs to ~/.local/bin ──────────────────────
+        local arch
+        arch="$(uname -m)"
+
+        # fzf
+        if ! command -v fzf &>/dev/null; then
+            info "Installing fzf to ~/.local/bin..."
+            local fzf_arch
+            case "$arch" in
+                x86_64)        fzf_arch="amd64" ;;
+                aarch64|arm64) fzf_arch="arm64" ;;
+                *)             warn "fzf: unsupported architecture $arch" ;;
+            esac
+            if [[ -n "${fzf_arch:-}" ]]; then
+                local fzf_ver
+                fzf_ver="$(curl -sS https://api.github.com/repos/junegunn/fzf/releases/latest \
+                    | grep '"tag_name"' | head -1 | sed 's/.*"v\(.*\)".*/\1/')"
+                curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${fzf_ver}/fzf-${fzf_ver}-linux_${fzf_arch}.tar.gz" \
+                    | tar xz -C "$HOME/.local/bin"
+                ok "fzf ${fzf_ver} installed"
+            fi
+        fi
+
+        # git-delta
+        if ! command -v delta &>/dev/null; then
+            info "Installing git-delta to ~/.local/bin..."
+            local delta_arch
+            case "$arch" in
+                x86_64)        delta_arch="x86_64" ;;
+                aarch64|arm64) delta_arch="aarch64" ;;
+                *)             warn "git-delta: unsupported architecture $arch" ;;
+            esac
+            if [[ -n "${delta_arch:-}" ]]; then
+                local delta_ver delta_tmp
+                delta_ver="$(curl -sS https://api.github.com/repos/dandavison/delta/releases/latest \
+                    | grep '"tag_name"' | head -1 | sed 's/.*"\(.*\)".*/\1/')"
+                delta_tmp="$(mktemp -d)"
+                curl -fsSL "https://github.com/dandavison/delta/releases/download/${delta_ver}/delta-${delta_ver}-${delta_arch}-unknown-linux-gnu.tar.gz" \
+                    | tar xz -C "$delta_tmp"
+                cp "$delta_tmp/delta-${delta_ver}-${delta_arch}-unknown-linux-gnu/delta" "$HOME/.local/bin/"
+                rm -rf "$delta_tmp"
+                ok "git-delta ${delta_ver} installed"
+            fi
+        fi
+
+        # Starship
         if ! command -v starship &>/dev/null; then
-            info "Installing Starship..."
-            curl -sS https://starship.rs/install.sh | sh
+            info "Installing Starship to ~/.local/bin..."
+            curl -sS https://starship.rs/install.sh | sh -s -- --bin-dir "$HOME/.local/bin" --yes
         fi
     fi
     ok "Packages installed"
