@@ -150,8 +150,8 @@ install_packages() {
             fi
         fi
 
-        # fzf
-        if ! command -v fzf &>/dev/null; then
+        # fzf (always install latest to ~/.local/bin to override outdated system versions)
+        {
             info "Installing fzf to ~/.local/bin..."
             local fzf_arch
             case "$arch" in
@@ -167,7 +167,7 @@ install_packages() {
                     | tar xz -C "$HOME/.local/bin"
                 ok "fzf ${fzf_ver} installed"
             fi
-        fi
+        }
 
         # git-delta
         if ! command -v delta &>/dev/null; then
