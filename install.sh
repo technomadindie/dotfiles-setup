@@ -1,0 +1,345 @@
+#!/usr/bin/env bash
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
+BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
+OS="$(uname -s)"
+
+info()  { echo -e "${BLUE}[INFO]${NC} $1"; }
+ok()    { echo -e "${GREEN}[OK]${NC} $1"; }
+warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
+err()   { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# ─── Pre-flight ───────────────────────────────────────────────────────────────
+
+preflight() {
+    for cmd in git curl; do
+        if ! command -v "$cmd" &>/dev/null; then
+            err "$cmd is required but not found. Install it first:"
+            if [[ "$OS" == "Linux" ]]; then
+                err "  sudo apt install $cmd   (Debian/Ubuntu)"
+                err "  sudo dnf install $cmd   (Fedora/RHEL)"
+            else
+                err "  xcode-select --install  (macOS)"
+            fi
+            exit 1
+        fi
+    done
+    ok "Pre-flight checks passed (git, curl found)"
+}
+
+# ─── Backup existing configs ─────────────────────────────────────────────────
+
+backup_if_exists() {
+    local target="$1"
+    if [[ -e "$target" || -L "$target" ]]; then
+        mkdir -p "$BACKUP_DIR"
+        mv "$target" "$BACKUP_DIR/"
+        warn "Backed up $target → $BACKUP_DIR/"
+    fi
+}
+
+backup() {
+    info "Backing up existing configs..."
+    backup_if_exists "$HOME/.zshenv"
+    backup_if_exists "$HOME/.zshrc"
+    backup_if_exists "$HOME/.gitconfig"
+    backup_if_exists "$HOME/.tmux.conf"
+    backup_if_exists "$HOME/.config/nvim"
+    backup_if_exists "$HOME/.config/starship.toml"
+    backup_if_exists "$HOME/.config/bat"
+    backup_if_exists "$HOME/.config/ripgrep"
+    backup_if_exists "$HOME/.config/fd"
+    backup_if_exists "$HOME/.config/zsh"
+    ok "Backup complete"
+}
+
+# ─── Install packages ────────────────────────────────────────────────────────
+
+install_packages() {
+    if [[ "$OS" == "Darwin" ]]; then
+        info "Detected macOS"
+
+        # Install Homebrew if missing
+        if ! command -v brew &>/dev/null; then
+            info "Installing Homebrew..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        fi
+        # Apple Silicon: /opt/homebrew; Intel Mac: /usr/local (see https://docs.brew.sh/Installation)
+        if [[ -x /opt/homebrew/bin/brew ]]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        elif [[ -x /usr/local/bin/brew ]]; then
+            eval "$(/usr/local/bin/brew shellenv)"
+        fi
+
+        info "Installing packages via Homebrew..."
+        brew bundle --file="$DOTFILES_DIR/Brewfile"
+
+    elif [[ "$OS" == "Linux" ]]; then
+        info "Detected Linux"
+
+        if command -v apt &>/dev/null; then
+            info "Installing packages via apt..."
+            sudo apt update
+            sudo apt install -y \
+                zsh stow fzf ripgrep bat neovim tmux \
+                nodejs npm curl git xclip wl-clipboard
+
+            # eza: only when packaged in your release (e.g. Ubuntu 24.04+ universe); skip otherwise
+            if apt-cache show eza &>/dev/null; then
+                sudo apt install -y eza
+            else
+                info "eza not in default apt repos for this release; ls aliases fall back to standard ls"
+            fi
+
+            # fd-find has a different package name on Debian/Ubuntu
+            sudo apt install -y fd-find || true
+
+            # bat binary is 'batcat' on Debian/Ubuntu — create symlink
+            if command -v batcat &>/dev/null && ! command -v bat &>/dev/null; then
+                sudo ln -sf "$(which batcat)" /usr/local/bin/bat
+            fi
+
+            # fd binary is 'fdfind' on Debian/Ubuntu — create symlink
+            if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
+                sudo ln -sf "$(which fdfind)" /usr/local/bin/fd
+            fi
+
+            # git-delta (not in default repos, install from GitHub release)
+            if ! command -v delta &>/dev/null; then
+                warn "git-delta not available via apt. Install manually: https://github.com/dandavison/delta/releases"
+            fi
+
+        elif command -v dnf &>/dev/null; then
+            info "Installing packages via dnf..."
+            sudo dnf install -y \
+                zsh stow fzf ripgrep fd-find bat eza neovim tmux \
+                nodejs npm curl git git-delta xclip wl-clipboard
+
+        else
+            err "Unsupported package manager. Install packages manually."
+            exit 1
+        fi
+
+        # Starship (cross-platform installer)
+        if ! command -v starship &>/dev/null; then
+            info "Installing Starship..."
+            curl -sS https://starship.rs/install.sh | sh
+        fi
+    fi
+    ok "Packages installed"
+}
+
+# ─── Install oh-my-zsh ───────────────────────────────────────────────────────
+
+install_omz() {
+    if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
+        info "Installing oh-my-zsh..."
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" \
+            --unattended --keep-zshrc
+        # oh-my-zsh creates ~/.zshrc even with --keep-zshrc; remove it since we use ZDOTDIR
+        rm -f "$HOME/.zshrc"
+        ok "oh-my-zsh installed"
+    else
+        ok "oh-my-zsh already installed"
+    fi
+}
+
+# ─── Clone oh-my-zsh custom plugins ──────────────────────────────────────────
+
+install_omz_plugins() {
+    local ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+
+    clone_plugin() {
+        local repo="$1"
+        local name="$(basename "$repo")"
+        local dest="$ZSH_CUSTOM/plugins/$name"
+
+        if [[ ! -d "$dest" ]]; then
+            info "Cloning $name..."
+            git clone "https://github.com/$repo.git" "$dest"
+        else
+            ok "$name already installed"
+        fi
+    }
+
+    clone_plugin "zsh-users/zsh-autosuggestions"
+    clone_plugin "zsh-users/zsh-syntax-highlighting"
+    clone_plugin "zsh-users/zsh-history-substring-search"
+    clone_plugin "zsh-users/zsh-completions"
+    clone_plugin "Aloxaf/fzf-tab"
+    ok "oh-my-zsh plugins installed"
+}
+
+# ─── Clone TPM (Tmux Plugin Manager) ─────────────────────────────────────────
+
+install_tpm() {
+    if [[ ! -d "$HOME/.tmux/plugins/tpm" ]]; then
+        info "Installing TPM..."
+        git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+        ok "TPM installed"
+    else
+        ok "TPM already installed"
+    fi
+}
+
+# ─── Install Nerd Font ───────────────────────────────────────────────────────
+
+install_nerd_font() {
+    local font_name="Hack"
+    local font_zip="${font_name}.zip"
+    local font_url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/${font_zip}"
+
+    if [[ "$OS" == "Darwin" ]]; then
+        local font_dir="$HOME/Library/Fonts"
+    else
+        local font_dir="$HOME/.local/share/fonts"
+    fi
+
+    # Check if already installed
+    if ls "$font_dir"/HackNerdFont* &>/dev/null 2>&1; then
+        ok "Hack Nerd Font already installed"
+        return
+    fi
+
+    info "Installing Hack Nerd Font..."
+    mkdir -p "$font_dir"
+
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    curl -fsSL "$font_url" -o "$tmp_dir/$font_zip"
+    unzip -qo "$tmp_dir/$font_zip" -d "$tmp_dir/font"
+    cp "$tmp_dir"/font/*.ttf "$font_dir/"
+    rm -rf "$tmp_dir"
+
+    # Rebuild font cache on Linux
+    if [[ "$OS" == "Linux" ]] && command -v fc-cache &>/dev/null; then
+        fc-cache -f "$font_dir"
+    fi
+
+    ok "Hack Nerd Font installed to $font_dir"
+}
+
+# ─── Stow all packages ───────────────────────────────────────────────────────
+
+install_stow() {
+    info "Creating symlinks with stow..."
+    cd "$DOTFILES_DIR"
+
+    # Ensure ~/.config exists
+    mkdir -p "$HOME/.config"
+
+    stow_packages=(zsh git starship nvim tmux bat ripgrep fd)
+    for pkg in "${stow_packages[@]}"; do
+        stow -v -d "$DOTFILES_DIR" -t "$HOME" "$pkg"
+        ok "Stowed $pkg"
+    done
+}
+
+# ─── Create local config template ────────────────────────────────────────────
+
+install_local_conf() {
+    local LOCAL_CONF="$HOME/.config/zsh/conf.d/99-local.zsh"
+    if [[ ! -f "$LOCAL_CONF" ]]; then
+        cat > "$LOCAL_CONF" << 'EOF'
+# Machine-specific configuration (gitignored)
+# Add your local PATH additions, work-specific aliases, etc. here
+
+EOF
+        ok "Created $LOCAL_CONF (edit for machine-specific config)"
+    else
+        ok "99-local.zsh already exists"
+    fi
+}
+
+# ─── Set default shell ───────────────────────────────────────────────────────
+
+install_default_shell() {
+    local ZSH_PATH
+    ZSH_PATH="$(which zsh)"
+    if [[ "$SHELL" != "$ZSH_PATH" ]]; then
+        info "Setting zsh as default shell..."
+        chsh -s "$ZSH_PATH"
+        ok "Default shell set to zsh"
+    else
+        ok "zsh is already the default shell"
+    fi
+}
+
+# ─── Summary ─────────────────────────────────────────────────────────────────
+
+summary() {
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}  Dotfiles installation complete!${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+    echo ""
+    echo "  Configs backed up to: $BACKUP_DIR"
+    echo "  Dotfiles directory:   $DOTFILES_DIR"
+    echo ""
+    echo "  Next steps:"
+    echo "    1. Open a new terminal (or run: exec zsh)"
+    echo "    2. In tmux, press prefix + I to install tmux plugins"
+    echo "    3. Open nvim — plugins will auto-install on first launch"
+    echo "    4. Edit ~/.config/zsh/conf.d/99-local.zsh for machine-specific config"
+    echo ""
+}
+
+# ─── Run all steps (full install) ────────────────────────────────────────────
+
+install_all() {
+    preflight
+    backup
+    install_packages
+    install_omz
+    install_omz_plugins
+    install_tpm
+    install_nerd_font
+    install_stow
+    install_local_conf
+    install_default_shell
+    summary
+}
+
+# ─── Help ─────────────────────────────────────────────────────────────────────
+
+show_help() {
+    echo "Usage: ./install.sh [command]"
+    echo ""
+    echo "Commands:"
+    echo "  (no args)       Run full installation"
+    echo "  packages        Install brew/apt/dnf packages"
+    echo "  omz             Install oh-my-zsh"
+    echo "  omz-plugins     Clone oh-my-zsh custom plugins"
+    echo "  tpm             Install Tmux Plugin Manager"
+    echo "  nerd-font       Install Hack Nerd Font"
+    echo "  stow            Create symlinks with GNU Stow"
+    echo "  local-conf      Create 99-local.zsh template"
+    echo "  default-shell   Set zsh as default shell"
+    echo "  backup          Backup existing configs"
+    echo "  help            Show this help"
+}
+
+# ─── Dispatcher ───────────────────────────────────────────────────────────────
+
+case "${1:-all}" in
+    all)            install_all ;;
+    packages)       preflight && install_packages ;;
+    omz)            preflight && install_omz ;;
+    omz-plugins)    preflight && install_omz_plugins ;;
+    tpm)            preflight && install_tpm ;;
+    nerd-font)      preflight && install_nerd_font ;;
+    stow)           install_stow ;;
+    local-conf)     install_local_conf ;;
+    default-shell)  install_default_shell ;;
+    backup)         backup ;;
+    help|--help|-h) show_help ;;
+    *)              err "Unknown command: $1" && show_help && exit 1 ;;
+esac

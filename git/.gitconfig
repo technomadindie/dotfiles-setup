@@ -1,0 +1,49 @@
+[user]
+	name = Siddarth G
+	email = siddarthg@gmail.com
+
+[core]
+	editor = nvim
+	autocrlf = input
+	pager = delta
+
+[init]
+	defaultBranch = main
+
+[pull]
+	rebase = true
+
+[push]
+	autoSetupRemote = true
+
+[merge]
+	conflictstyle = zdiff3
+	tool = nvim
+
+[diff]
+	algorithm = histogram
+	colorMoved = default
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
+	side-by-side = true
+	line-numbers = true
+
+[rerere]
+	enabled = true
+
+[alias]
+	lg = log --graph --oneline --decorate --all
+	st = status -sb
+	unstage = reset HEAD --
+	last = log -1 HEAD --stat
+	amend = commit --amend --no-edit
+
+[filter "lfs"]
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f

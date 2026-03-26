@@ -1,0 +1,9 @@
+.DS_Store
+*.zwc
+*.zwc.old
+**/99-local.zsh
+.zsh_sessions/
+.zsh_history
+.zhistory
+.zcompdump*
+.chpwd-recent-dirs
