@@ -92,7 +92,7 @@ install_packages() {
             info "Installing packages via apt..."
             sudo apt update
             sudo apt install -y \
-                zsh stow ripgrep bat neovim tmux unzip \
+                zsh stow ripgrep bat tmux unzip \
                 nodejs npm curl git xclip wl-clipboard
 
             # eza: only when packaged in your release (e.g. Ubuntu 24.04+ universe); skip otherwise
@@ -118,7 +118,7 @@ install_packages() {
         elif command -v dnf &>/dev/null; then
             info "Installing packages via dnf..."
             sudo dnf install -y \
-                zsh stow ripgrep fd-find bat eza neovim tmux unzip \
+                zsh stow ripgrep fd-find bat eza tmux unzip \
                 nodejs npm curl git xclip wl-clipboard
 
         else
@@ -129,6 +129,26 @@ install_packages() {
         # ── Rootless binary installs to ~/.local/bin ──────────────────────
         local arch
         arch="$(uname -m)"
+
+        # Neovim (apt/dnf ship outdated versions missing vim.keymap etc.)
+        if ! command -v nvim &>/dev/null || [[ "$(nvim --version | head -1 | sed 's/[^0-9]*\([0-9]*\)\.\([0-9]*\).*/\1\2/')" -lt "09" ]]; then
+            info "Installing Neovim (latest stable) to ~/.local/bin..."
+            local nvim_arch
+            case "$arch" in
+                x86_64)        nvim_arch="x86_64" ;;
+                aarch64|arm64) nvim_arch="aarch64" ;;
+                *)             warn "nvim: unsupported architecture $arch" ;;
+            esac
+            if [[ -n "${nvim_arch:-}" ]]; then
+                local nvim_tmp
+                nvim_tmp="$(mktemp -d)"
+                curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${nvim_arch}.tar.gz" \
+                    | tar xz -C "$nvim_tmp"
+                cp -r "$nvim_tmp"/nvim-linux-${nvim_arch}/* "$HOME/.local/"
+                rm -rf "$nvim_tmp"
+                ok "Neovim installed"
+            fi
+        fi
 
         # fzf
         if ! command -v fzf &>/dev/null; then
