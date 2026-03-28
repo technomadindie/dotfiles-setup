@@ -334,17 +334,20 @@ install_default_shell() {
 
     info "Setting zsh as default shell..."
 
+    local current_user
+    current_user="$(whoami)"
+
     # Ensure zsh is listed in /etc/shells (required for chsh to work)
     if ! grep -qx "$ZSH_PATH" /etc/shells; then
         echo "$ZSH_PATH" | sudo tee -a /etc/shells > /dev/null
     fi
 
-    # Use sudo usermod to avoid chsh's own password prompt
-    if sudo usermod -s "$ZSH_PATH" "$USER" 2>/dev/null; then
-        ok "Default shell set to zsh"
+    # sudo chsh avoids chsh's own interactive password prompt
+    if sudo chsh -s "$ZSH_PATH" "$current_user"; then
+        ok "Default shell set to zsh (log out and back in for it to take effect)"
     else
         warn "Could not set default shell automatically."
-        warn "Run manually: chsh -s $ZSH_PATH"
+        warn "Run manually: sudo chsh -s $ZSH_PATH $current_user"
     fi
 }
 
@@ -360,7 +363,7 @@ summary() {
     echo "  Dotfiles directory:   $DOTFILES_DIR"
     echo ""
     echo "  Next steps:"
-    echo "    1. Open a new terminal (or run: exec zsh)"
+    echo "    1. Log out and back in for the default shell change to take effect"
     echo "    2. In tmux, press prefix + I to install tmux plugins"
     echo "    3. Open nvim — plugins will auto-install on first launch"
     echo "    4. Edit ~/.config/zsh/conf.d/99-local.zsh for machine-specific config"
