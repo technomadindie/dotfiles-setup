@@ -18,7 +18,7 @@ if [[ "$DOTFILES_OS" == "Darwin" ]]; then
 fi
 
 # History
-HISTFILE="$ZDOTDIR/.zhistory"
+HISTFILE="$HOME/.zhistory"
 HISTSIZE=100000
 SAVEHIST=100000
 
