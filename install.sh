@@ -355,26 +355,48 @@ summary() {
     echo ""
 }
 
+# ─── Skip helper ─────────────────────────────────────────────────────────────
+
+# Populated from --skip=a,b,c flag
+SKIP_STEPS=()
+
+should_skip() {
+    local step="$1"
+    for s in "${SKIP_STEPS[@]}"; do
+        [[ "$s" == "$step" ]] && return 0
+    done
+    return 1
+}
+
+run_step() {
+    local name="$1"; shift
+    if should_skip "$name"; then
+        warn "Skipping: $name"
+    else
+        "$@"
+    fi
+}
+
 # ─── Run all steps (full install) ────────────────────────────────────────────
 
 install_all() {
     preflight
-    backup
-    install_packages
-    install_omz
-    install_omz_plugins
-    install_tpm
-    install_nerd_font
-    install_stow
-    install_local_conf
-    install_default_shell
+    run_step backup          backup
+    run_step packages        install_packages
+    run_step omz             install_omz
+    run_step omz-plugins     install_omz_plugins
+    run_step tpm             install_tpm
+    run_step nerd-font       install_nerd_font
+    run_step stow            install_stow
+    run_step local-conf      install_local_conf
+    run_step default-shell   install_default_shell
     summary
 }
 
 # ─── Help ─────────────────────────────────────────────────────────────────────
 
 show_help() {
-    echo "Usage: ./install.sh [command]"
+    echo "Usage: ./install.sh [command] [--skip=step1,step2,...]"
     echo ""
     echo "Commands:"
     echo "  (no args)       Run full installation"
@@ -388,9 +410,27 @@ show_help() {
     echo "  default-shell   Set zsh as default shell"
     echo "  backup          Backup existing configs"
     echo "  help            Show this help"
+    echo ""
+    echo "Options:"
+    echo "  --skip=a,b,...  Skip one or more steps during full install"
+    echo ""
+    echo "Examples:"
+    echo "  ./install.sh --skip=default-shell"
+    echo "  ./install.sh --skip=nerd-font,omz-plugins"
 }
 
 # ─── Dispatcher ───────────────────────────────────────────────────────────────
+
+# Parse --skip=a,b,c from any position in args
+ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == --skip=* ]]; then
+        IFS=',' read -ra SKIP_STEPS <<< "${arg#--skip=}"
+    else
+        ARGS+=("$arg")
+    fi
+done
+set -- "${ARGS[@]}"
 
 case "${1:-all}" in
     all)            install_all ;;
