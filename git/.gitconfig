@@ -17,7 +17,7 @@
 	autoSetupRemote = true
 
 [merge]
-	conflictstyle = zdiff3
+	conflictstyle = diff3
 	tool = nvim
 
 [diff]
