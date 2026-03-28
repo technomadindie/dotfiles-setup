@@ -344,7 +344,7 @@ install_default_shell() {
 
     # sudo chsh avoids chsh's own interactive password prompt
     if sudo chsh -s "$ZSH_PATH" "$current_user"; then
-        ok "Default shell set to zsh (log out and back in for it to take effect)"
+        ok "Default shell set to zsh"
     else
         warn "Could not set default shell automatically."
         warn "Run manually: sudo chsh -s $ZSH_PATH $current_user"
@@ -363,7 +363,9 @@ summary() {
     echo "  Dotfiles directory:   $DOTFILES_DIR"
     echo ""
     echo "  Next steps:"
-    echo "    1. Log out and back in for the default shell change to take effect"
+    echo "    1. Run: exec zsh"
+    echo "       └─ Switches your current session to zsh immediately."
+    echo "          Future logins will use zsh automatically (no restart needed)."
     echo "    2. In tmux, press prefix + I to install tmux plugins"
     echo "    3. Open nvim — plugins will auto-install on first launch"
     echo "    4. Edit ~/.config/zsh/conf.d/99-local.zsh for machine-specific config"
