@@ -136,7 +136,7 @@ install_packages() {
             local nvim_arch
             case "$arch" in
                 x86_64)        nvim_arch="x86_64" ;;
-                aarch64|arm64) nvim_arch="aarch64" ;;
+                aarch64|arm64) nvim_arch="arm64" ;;
                 *)             warn "nvim: unsupported architecture $arch" ;;
             esac
             if [[ -n "${nvim_arch:-}" ]]; then
@@ -327,12 +327,26 @@ EOF
 install_default_shell() {
     local ZSH_PATH
     ZSH_PATH="$(which zsh)"
-    if [[ "$SHELL" != "$ZSH_PATH" ]]; then
-        info "Setting zsh as default shell..."
-        chsh -s "$ZSH_PATH"
-        ok "Default shell set to zsh"
-    else
+    if [[ "$SHELL" == "$ZSH_PATH" ]]; then
         ok "zsh is already the default shell"
+        return
+    fi
+
+    info "Setting zsh as default shell..."
+
+    # Ensure zsh is listed in /etc/shells (required for chsh to work)
+    if ! grep -qx "$ZSH_PATH" /etc/shells; then
+        echo "$ZSH_PATH" | sudo tee -a /etc/shells > /dev/null
+    fi
+
+    # Try chsh first; fall back to usermod if it fails
+    if chsh -s "$ZSH_PATH" 2>/dev/null; then
+        ok "Default shell set to zsh (via chsh)"
+    elif sudo usermod -s "$ZSH_PATH" "$USER" 2>/dev/null; then
+        ok "Default shell set to zsh (via usermod)"
+    else
+        warn "Could not set default shell automatically."
+        warn "Run manually: chsh -s $ZSH_PATH"
     fi
 }
 
