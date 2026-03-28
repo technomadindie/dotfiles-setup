@@ -339,11 +339,9 @@ install_default_shell() {
         echo "$ZSH_PATH" | sudo tee -a /etc/shells > /dev/null
     fi
 
-    # Try chsh first; fall back to usermod if it fails
-    if chsh -s "$ZSH_PATH" 2>/dev/null; then
-        ok "Default shell set to zsh (via chsh)"
-    elif sudo usermod -s "$ZSH_PATH" "$USER" 2>/dev/null; then
-        ok "Default shell set to zsh (via usermod)"
+    # Use sudo usermod to avoid chsh's own password prompt
+    if sudo usermod -s "$ZSH_PATH" "$USER" 2>/dev/null; then
+        ok "Default shell set to zsh"
     else
         warn "Could not set default shell automatically."
         warn "Run manually: chsh -s $ZSH_PATH"
