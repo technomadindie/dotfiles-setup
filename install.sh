@@ -20,6 +20,24 @@ ok()    { echo -e "${GREEN}[OK]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
+confirm() {
+    local prompt="$1"
+    local reply
+
+    while true; do
+        printf "%s [y/N] " "$prompt"
+        read -r reply || {
+            echo ""
+            return 1
+        }
+        case "$reply" in
+            [Yy]|[Yy][Ee][Ss]) return 0 ;;
+            ""|[Nn]|[Nn][Oo]) return 1 ;;
+            *) warn "Please answer yes or no." ;;
+        esac
+    done
+}
+
 # ─── Pre-flight ───────────────────────────────────────────────────────────────
 
 preflight() {
@@ -169,6 +187,14 @@ install_packages() {
             fi
         }
 
+        # zoxide
+        if ! command -v zoxide &>/dev/null; then
+            info "Installing zoxide to ~/.local/bin..."
+            curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh \
+                | sh -s -- --bin-dir "$HOME/.local/bin" --man-dir "$HOME/.local/share/man"
+            ok "zoxide installed"
+        fi
+
         # git-delta
         if ! command -v delta &>/dev/null; then
             info "Installing git-delta to ~/.local/bin..."
@@ -292,6 +318,39 @@ install_nerd_font() {
 
 # ─── Stow all packages ───────────────────────────────────────────────────────
 
+create_zshrc_compat_symlink() {
+    local source="$HOME/.config/zsh/.zshrc"
+    local target="$HOME/.zshrc"
+
+    if [[ ! -e "$source" ]]; then
+        warn "Skipping ~/.zshrc compatibility symlink; $source does not exist"
+        return
+    fi
+
+    if [[ -L "$target" && "$(readlink "$target")" == "$source" ]]; then
+        ok "~/.zshrc already points to $source"
+        return
+    fi
+
+    if [[ -e "$target" || -L "$target" ]]; then
+        warn "$target already exists"
+        if confirm "Back it up to $BACKUP_DIR and use the repo-managed .zshrc instead?"; then
+            backup_if_exists "$target"
+        else
+            warn "Leaving $target unchanged"
+            return
+        fi
+    fi
+
+    if [[ -e "$target" || -L "$target" ]]; then
+        warn "Could not replace $target; leaving it unchanged"
+        return
+    fi
+
+    ln -s "$source" "$target"
+    ok "Linked $target -> $source"
+}
+
 install_stow() {
     info "Creating symlinks with stow..."
     cd "$DOTFILES_DIR"
@@ -304,6 +363,8 @@ install_stow() {
         stow -v -d "$DOTFILES_DIR" -t "$HOME" "$pkg"
         ok "Stowed $pkg"
     done
+
+    create_zshrc_compat_symlink
 }
 
 # ─── Create local config template ────────────────────────────────────────────

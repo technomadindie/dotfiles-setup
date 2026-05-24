@@ -2,6 +2,7 @@
 brew "zsh"
 brew "stow"
 brew "fzf"
+brew "zoxide"
 brew "ripgrep"
 brew "fd"
 brew "bat"

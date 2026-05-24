@@ -11,6 +11,7 @@ Cross-platform dotfiles for macOS and Linux. Modular zsh config with oh-my-zsh, 
 | **Tmux** | `tmux/` | C-a prefix, vim-like nav, tmux-power theme, TPM |
 | **Git** | `git/` | Delta pager (side-by-side diffs), rebase on pull, useful aliases |
 | **Starship** | `starship/` | Compact prompt with git status and language contexts |
+| **zoxide** | zsh init | Smarter directory jumping with `z` and `zi` |
 | **bat** | `bat/` | Dracula theme, line numbers |
 | **ripgrep** | `ripgrep/` | Smart-case, hidden files, sensible ignores |
 | **fd** | `fd/` | Ignore .git, node_modules, .cache |
@@ -116,7 +117,7 @@ This will:
 | zsh-completions | Extra completion definitions for hundreds of commands |
 | fzf-tab | Replaces default tab completion with fzf fuzzy matching |
 | extract | Universal `extract` command for any archive format |
-| z | Frecency-based directory jumping (`z foo` → best match) |
+| zoxide | Frecency-based directory jumping (`z foo` -> best match, `zi foo` for fzf) |
 
 ## Key Aliases
 

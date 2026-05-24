@@ -23,6 +23,13 @@
 [diff]
 	algorithm = histogram
 	colorMoved = default
+	tool = vscode
+
+[difftool]
+	prompt = false
+
+[difftool "vscode"]
+	cmd = code -dw "$LOCAL" "$REMOTE"
 
 [interactive]
 	diffFilter = delta --color-only

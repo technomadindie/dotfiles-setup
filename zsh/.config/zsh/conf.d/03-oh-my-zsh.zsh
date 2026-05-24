@@ -11,7 +11,6 @@ zstyle ':omz:update' frequency 14
 plugins=(
     zsh-completions
     extract
-    z
     fzf-tab
     zsh-autosuggestions
     zsh-syntax-highlighting
