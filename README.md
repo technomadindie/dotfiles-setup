@@ -27,6 +27,7 @@ Cross-platform dotfiles for macOS and Linux. Modular zsh config with oh-my-zsh, 
 │   ├── .zshenv                 ← Sets XDG dirs, ZDOTDIR, EDITOR
 │   └── .config/zsh/
 │       ├── .zshrc              ← Sources conf.d/*.zsh + inits Starship when installed
+│       ├── completions/        ← Custom zsh completions
 │       └── conf.d/
 │           ├── 00-params.zsh        ← Loads ~/.params_for_dotfiles
 │           ├── 01-environment.zsh   ← PATH, history, exports

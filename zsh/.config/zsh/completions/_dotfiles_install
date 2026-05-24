@@ -1,0 +1,59 @@
+#compdef install.sh ./install.sh
+
+local command_path
+local -a install_commands skip_steps
+
+command_path="${words[1]}"
+if [[ "$command_path" != */* ]]; then
+    command_path="${commands[$command_path]}"
+fi
+command_path="${command_path:A}"
+
+if [[ ! -r "$command_path" ]] ||
+    ! grep -q 'PARAMS_FILE="$HOME/.params_for_dotfiles"' "$command_path" 2>/dev/null ||
+    ! grep -q 'install_personal_config' "$command_path" 2>/dev/null; then
+    return 1
+fi
+
+install_commands=(
+    'all:Run full installation'
+    'packages:Install brew/apt/dnf packages'
+    'personalize:Create local params and Git identity config'
+    'omz:Install oh-my-zsh'
+    'omz-plugins:Clone oh-my-zsh custom plugins'
+    'tpm:Install Tmux Plugin Manager'
+    'nerd-font:Install configured Nerd Font'
+    'stow:Create symlinks with GNU Stow'
+    'local-conf:Create 99-local.zsh template'
+    'default-shell:Set zsh as default shell'
+    'backup:Backup existing configs'
+    'help:Show help'
+)
+
+skip_steps=(
+    'personalize[Create local params and Git identity config]'
+    'backup[Backup existing configs]'
+    'packages[Install brew/apt/dnf packages]'
+    'omz[Install oh-my-zsh]'
+    'omz-plugins[Clone oh-my-zsh custom plugins]'
+    'tpm[Install Tmux Plugin Manager]'
+    'nerd-font[Install configured Nerd Font]'
+    'stow[Create symlinks with GNU Stow]'
+    'local-conf[Create 99-local.zsh template]'
+    'default-shell[Set zsh as default shell]'
+)
+
+_arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '--skip=[Skip one or more full-install steps]:step:->skip' \
+    '1:command:->command' \
+    '*:: :->args'
+
+case "$state" in
+    command)
+        _describe -t commands 'install.sh command' install_commands
+        ;;
+    skip)
+        _values -s , 'step to skip' "$skip_steps[@]"
+        ;;
+esac

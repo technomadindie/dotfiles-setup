@@ -1,4 +1,11 @@
-# Completion configuration (runs after oh-my-zsh compinit)
+# Completion configuration
+
+typeset -U fpath
+DOTFILES_COMPLETIONS_DIR="${ZDOTDIR:-$HOME/.config/zsh}/completions"
+if [[ -d "$DOTFILES_COMPLETIONS_DIR" ]]; then
+    fpath=("$DOTFILES_COMPLETIONS_DIR" $fpath)
+fi
+unset DOTFILES_COMPLETIONS_DIR
 
 # Additional completion options
 comp_options+=(globdots)
