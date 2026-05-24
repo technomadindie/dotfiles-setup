@@ -9,4 +9,6 @@ if (( $+commands[zoxide] )); then
 fi
 
 # Initialize Starship prompt
-eval "$(starship init zsh)"
+if (( $+commands[starship] )); then
+    eval "$(starship init zsh)"
+fi

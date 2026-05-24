@@ -9,7 +9,7 @@ Cross-platform dotfiles for macOS and Linux. Modular zsh config with oh-my-zsh, 
 | **Zsh** | `zsh/` | Modular `conf.d/` layout with oh-my-zsh plugin management |
 | **Neovim** | `nvim/` | Minimal setup: lazy.nvim, treesitter, telescope, catppuccin |
 | **Tmux** | `tmux/` | C-a prefix, vim-like nav, tmux-power theme, TPM |
-| **Git** | `git/` | Delta pager (side-by-side diffs), rebase on pull, useful aliases |
+| **Git** | `git/` | Delta pager, rebase on pull, useful aliases, local identity include |
 | **Starship** | `starship/` | Compact prompt with git status and language contexts |
 | **zoxide** | zsh init | Smarter directory jumping with `z` and `zi` |
 | **bat** | `bat/` | Dracula theme, line numbers |
@@ -26,8 +26,9 @@ Cross-platform dotfiles for macOS and Linux. Modular zsh config with oh-my-zsh, 
 ├── zsh/                        ← Stow package → symlinks into ~/
 │   ├── .zshenv                 ← Sets XDG dirs, ZDOTDIR, EDITOR
 │   └── .config/zsh/
-│       ├── .zshrc              ← Sources conf.d/*.zsh + inits Starship
+│       ├── .zshrc              ← Sources conf.d/*.zsh + inits Starship when installed
 │       └── conf.d/
+│           ├── 00-params.zsh        ← Loads ~/.params_for_dotfiles
 │           ├── 01-environment.zsh   ← PATH, history, exports
 │           ├── 02-completion.zsh    ← Tab completion, auto-pushd
 │           ├── 03-oh-my-zsh.zsh     ← Plugin list, plugin config
@@ -48,6 +49,13 @@ Cross-platform dotfiles for macOS and Linux. Modular zsh config with oh-my-zsh, 
 
 Each directory is a **GNU Stow package** — its contents mirror `~/` and get symlinked there. You can stow/unstow individual packages independently.
 
+The installer also creates local machine-specific files outside the repo:
+
+| File | Purpose |
+|---|---|
+| `~/.params_for_dotfiles` | Personal answers such as Git identity, font, locale, and optional tool preferences |
+| `~/.config/git/user.gitconfig` | Generated Git identity and optional local Git tool config |
+
 ## How It Works
 
 ```
@@ -55,6 +63,7 @@ Each directory is a **GNU Stow package** — its contents mirror `~/` and get sy
                     ↓
 ~/.config/zsh/.zshrc                         (sources conf.d/*.zsh in order)
                     ↓
+conf.d/00-params.zsh                         (loads ~/.params_for_dotfiles)
 conf.d/01-environment.zsh                    (PATH, history, exports)
 conf.d/02-completion.zsh                     (tab completion settings)
 conf.d/03-oh-my-zsh.zsh                     (loads oh-my-zsh + plugins)
@@ -64,7 +73,7 @@ conf.d/06-aliases.zsh                        (all aliases)
 conf.d/07-functions.zsh                      (custom functions)
 conf.d/99-local.zsh                          (machine-specific, gitignored)
                     ↓
-eval "$(starship init zsh)"                  (prompt)
+starship init zsh                            (prompt, when installed)
 ```
 
 ## Installation
@@ -78,22 +87,24 @@ cd ~/dotfiles
 ```
 
 This will:
-1. Backup existing configs to `~/.dotfiles_backup/<timestamp>/`
-2. Install packages via Homebrew (macOS) or apt/dnf (Linux)
-3. Install oh-my-zsh + custom plugins
-4. Install TPM (tmux plugin manager) + Hack Nerd Font
-5. Stow all config packages
-6. Set zsh as default shell
+1. Personalize local Git identity in `~/.params_for_dotfiles`
+2. Backup existing configs to `~/.dotfiles_backup/<timestamp>/`
+3. Install packages via Homebrew (macOS) or apt/dnf (Linux)
+4. Install oh-my-zsh + custom plugins
+5. Install TPM (tmux plugin manager) + configured Nerd Font (default: Hack)
+6. Stow all config packages
+7. Set zsh as default shell
 
 ### Individual Steps
 
 ```bash
 ./install.sh help             # Show all commands
 ./install.sh packages         # Install brew/apt/dnf packages only
+./install.sh personalize      # Create local params + Git identity config
 ./install.sh omz              # Install oh-my-zsh only
 ./install.sh omz-plugins      # Clone oh-my-zsh plugins only
 ./install.sh tpm              # Install tmux plugin manager only
-./install.sh nerd-font        # Install Hack Nerd Font only
+./install.sh nerd-font        # Install configured Nerd Font only
 ./install.sh stow             # Create symlinks only
 ./install.sh backup           # Backup existing configs only
 ./install.sh default-shell    # Set zsh as default shell only
@@ -104,8 +115,9 @@ This will:
 1. **New terminal** — open a new terminal or run `exec zsh`
 2. **Tmux plugins** — open tmux, press `C-a + I` to install plugins
 3. **Neovim plugins** — open `nvim`, lazy.nvim auto-installs on first launch
-4. **Terminal font** — set your terminal emulator font to **Hack Nerd Font**
-5. **Local config** — edit `~/.config/zsh/conf.d/99-local.zsh` for machine-specific settings
+4. **Terminal font** — set your terminal emulator font to your configured Nerd Font, defaulting to **Hack Nerd Font**
+5. **Personal defaults** — edit `~/.params_for_dotfiles`, then run `./install.sh personalize`
+6. **Local shell config** — edit `~/.config/zsh/conf.d/99-local.zsh` for machine-specific shell tweaks
 
 ## Zsh Plugins
 
@@ -138,6 +150,53 @@ This will:
 | `mkcd` | Create dir and cd into it | Function |
 
 ## Customization
+
+### Personalization Params
+
+`./install.sh` creates `~/.params_for_dotfiles` for local values that should not be committed to this repo. New users can simply run `./install.sh`; the installer reuses existing user-owned Git config when available and asks only for missing Git name/email.
+
+```sh
+# Dotfiles local parameters
+# This file belongs to this machine/user only.
+# Edit the supported values below, then run ./install.sh personalize.
+# This file is regenerated by the installer and should not be committed to the repo.
+
+# Git identity used for commits.
+# Example:
+# DOTFILES_GIT_NAME="Jane Doe"
+# DOTFILES_GIT_EMAIL="jane@example.com"
+DOTFILES_GIT_NAME=""
+DOTFILES_GIT_EMAIL=""
+
+# Default editor used by Git and shell tools.
+# Example: "nvim", "vim", "code --wait"
+DOTFILES_EDITOR="nvim"
+
+# Nerd Font to install.
+# Example: "Hack", "JetBrainsMono", "FiraCode"
+DOTFILES_NERD_FONT="Hack"
+
+# Optional locale override.
+# Leave empty to use your system's existing locale.
+# Example: "en_US.UTF-8"
+DOTFILES_LOCALE=""
+
+# Optional Git credential helper.
+# Leave empty to auto-detect. Use "gh" if you use GitHub CLI.
+# Example: "gh"
+DOTFILES_GIT_CREDENTIAL_HELPER=""
+
+# Optional Git difftool.
+# Leave empty to skip difftool setup.
+# Example: "vscode"
+DOTFILES_GIT_DIFFTOOL=""
+```
+
+After editing this file, run:
+
+```bash
+./install.sh personalize
+```
 
 ### Adding Your Own Config
 

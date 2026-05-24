@@ -1,7 +1,3 @@
-[user]
-	name = Siddarth G
-	email = sidgoyal23@gmail.com
-
 [core]
 	editor = nvim
 	autocrlf = input
@@ -23,13 +19,9 @@
 [diff]
 	algorithm = histogram
 	colorMoved = default
-	tool = vscode
 
 [difftool]
 	prompt = false
-
-[difftool "vscode"]
-	cmd = code -dw "$LOCAL" "$REMOTE"
 
 [interactive]
 	diffFilter = delta --color-only
@@ -54,9 +46,6 @@
 	required = true
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
-[credential "https://github.com"]
-	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
+
+[include]
+	path = ~/.config/git/user.gitconfig

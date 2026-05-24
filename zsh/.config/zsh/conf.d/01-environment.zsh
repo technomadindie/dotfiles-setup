@@ -31,8 +31,10 @@ setopt HIST_IGNORE_SPACE
 setopt HIST_VERIFY
 
 # Locale
-export LANG="en_US.UTF-8"
-export LC_ALL="en_US.UTF-8"
+if [[ -n "${DOTFILES_LOCALE:-}" ]]; then
+    export LANG="$DOTFILES_LOCALE"
+    export LC_ALL="$DOTFILES_LOCALE"
+fi
 
 # Pager
 export PAGER="less"

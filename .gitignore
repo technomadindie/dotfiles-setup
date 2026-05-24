@@ -1,4 +1,19 @@
 .DS_Store
+
+# Local/generated personalization files
+.params_for_dotfiles
+params.env
+user.gitconfig
+**/.config/dotfiles/params.env
+**/.config/git/user.gitconfig
+
+# Local install backups
+.dotfiles_backup/
+**/.dotfiles_backup/
+
+# Local review/report artifacts
+portability-review.html
+
 *.zwc
 *.zwc.old
 **/99-local.zsh
